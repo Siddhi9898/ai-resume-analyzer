@@ -47,6 +47,9 @@ def generate_pdf(feedback):
 # Upload resume
 uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 
+# NEW: Job Description Input
+job_desc = st.text_area("📄 Paste Job Description (Optional for ATS Matching)")
+
 if uploaded_file:
 
     text = extract_text_from_pdf(uploaded_file)
@@ -60,15 +63,26 @@ if uploaded_file:
     st.subheader("📊 Resume Insights")
     st.write(f"Total Skills Found: {len(user_skills)}")
 
-    if len(user_skills) < 5:
-        st.warning("Your resume has very few detectable skills.")
+    # ATS Score
+    base_score = min(len(user_skills) * 10, 100)
 
-    # Resume Score
-    score = min(len(user_skills) * 10, 100)
+    # JD Matching Score
+    jd_score = 0
+    jd_skills = []
 
-    st.subheader("📈 Resume Score")
-    st.progress(score)
-    st.write(f"Score: {score}/100")
+    if job_desc:
+        jd_text = job_desc.lower()
+        jd_skills = extract_skills(jd_text, market_skills)
+
+        if jd_skills:
+            match = len(set(user_skills) & set(jd_skills))
+            jd_score = int((match / len(jd_skills)) * 100)
+
+    final_score = int((base_score + jd_score) / 2) if jd_score > 0 else base_score
+
+    st.subheader("📊 ATS Score")
+    st.progress(final_score)
+    st.write(f"{final_score}/100")
 
     # Layout
     col1, col2 = st.columns(2)
@@ -82,7 +96,6 @@ if uploaded_file:
 
         results = get_role_scores(df, user_skills)
 
-        # Best role
         best_role = results[0][0]
         st.success(f"Best Role for You: {best_role}")
 
@@ -112,34 +125,36 @@ if uploaded_file:
 
     st.bar_chart(chart_data)
 
-    # Missing skills
-    st.subheader(f"🚀 Skills to Learn for {best_role}")
+    # Missing skills (based on JD if available)
+    st.subheader("🚀 Skills to Improve")
 
-    role_data = df[df["job_title"] == best_role]
+    if jd_skills:
+        missing = [skill for skill in jd_skills if skill not in user_skills]
+    else:
+        role_data = df[df["job_title"] == best_role]
 
-    role_skills = []
-    for skills in role_data["skills"].dropna():
-        skill_list = str(skills).replace("[","").replace("]","").replace("'","").split(",")
-        for s in skill_list:
-            role_skills.append(s.strip().lower())
+        role_skills = []
+        for skills in role_data["skills"].dropna():
+            skill_list = str(skills).replace("[","").replace("]","").replace("'","").split(",")
+            for s in skill_list:
+                role_skills.append(s.strip().lower())
 
-    role_skills = list(set(role_skills))
-
-    missing = [skill for skill in role_skills if skill not in user_skills]
+        role_skills = list(set(role_skills))
+        missing = [skill for skill in role_skills if skill not in user_skills]
 
     if missing:
-        for skill in missing[:8]:
+        for skill in missing[:10]:
             st.write(f"👉 {skill}")
     else:
-        st.success("You already match this role well!")
+        st.success("You already match well!")
 
     # AI Feedback
-    st.subheader("🤖 AI Resume Feedback")
+    st.subheader("🤖 Resume Feedback")
 
     feedback = generate_feedback(user_skills, best_role)
     st.write(feedback)
 
-    # Download PDF
+    # PDF Download
     pdf = generate_pdf(feedback)
 
     st.download_button(
@@ -149,5 +164,4 @@ if uploaded_file:
         mime="application/pdf"
     )
 
-    # Tip
-    st.info("💡 Tip: Add more relevant skills to improve your job match chances.")
+    st.info("💡 Tip: Tailor your resume according to job description for higher ATS score.")
