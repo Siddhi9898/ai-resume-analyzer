@@ -18,11 +18,15 @@ def generate_feedback(user_skills, best_role):
     4. Suggestions
     """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
 
-    return response["choices"][0]["message"]["content"]
+        return response["choices"][0]["message"]["content"]
+
+    except Exception as e:
+        return "⚠️ AI feedback is currently unavailable. Please try again later."
