@@ -3,3 +3,4 @@ pandas
 scikit-learn
 PyPDF2
 openai==0.28
+reportlab
